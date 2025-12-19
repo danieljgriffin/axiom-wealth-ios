@@ -1,21 +1,25 @@
-//
-//  ContentView.swift
-//  WealthTrackerIOS
-//
-//  Created by Daniel Griffin on 29/11/2025.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var investmentsViewModel = InvestmentsViewModel()
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            DashboardView()
+                .environmentObject(investmentsViewModel)
+                .tabItem {
+                    Label("Dashboard", systemImage: "house.fill")
+                }
+            
+            InvestmentsView()
+                .environmentObject(investmentsViewModel)
+                .tabItem {
+                    Label("Portfolio", systemImage: "briefcase.fill")
+                }
         }
-        .padding()
+        .task {
+            await investmentsViewModel.loadData()
+        }
     }
 }
 
