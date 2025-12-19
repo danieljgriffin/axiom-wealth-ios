@@ -2,6 +2,8 @@ import Foundation
 
 struct Goal: Identifiable, Codable, Equatable {
     let id: UUID
+    var backendId: Int? // ID from finance-api
+    var title: String
     var targetAmount: Double
     var targetDate: Date
     var isCompleted: Bool
@@ -17,12 +19,14 @@ struct Goal: Identifiable, Codable, Equatable {
     func daysRemaining() -> Int {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.day], from: Date(), to: targetDate)
-        return max(components.day ?? 0, 0)
+        return components.day ?? 0
     }
     
     static var empty: Goal {
         Goal(
             id: UUID(),
+            backendId: nil,
+            title: "",
             targetAmount: 0,
             targetDate: Date(),
             isCompleted: false,

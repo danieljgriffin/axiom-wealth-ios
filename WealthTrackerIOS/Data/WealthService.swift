@@ -122,7 +122,9 @@ class WealthService {
             let date = formatter.date(from: apiGoal.target_date) ?? Date()
             
             return Goal(
-                id: UUID(), // We can't persist Int ID cleanly into UUID without custom logic, but for fetching it's ok.
+                id: UUID(), // Local UI ID
+                backendId: apiGoal.id, // Store Backend ID
+                title: apiGoal.title,
                 targetAmount: apiGoal.target_amount,
                 targetDate: date,
                 isCompleted: apiGoal.status == "COMPLETED" || apiGoal.status == "ACHIEVED",
@@ -145,4 +147,71 @@ class WealthService {
         // Using "discardableResult" fetch or expecting APIPlatformCash
         let _: APIPlatformCash = try await api.send("/holdings/cash/\(encodedName)", method: "POST", body: body)
     }
+    
+    func createGoal(title: String, targetAmount: Double, targetDate: Date) async throws -> Goal {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        
+        let request = CreateGoalRequest(
+            title: title,
+            target_amount: targetAmount,
+            target_date: formatter.string(from: targetDate),
+            status: "ACTIVE",
+            is_primary: false
+        )
+        
+        let apiGoal: APIGoal = try await api.send("/goals/", method: "POST", body: request)
+         
+        // Return mapped Goal
+        let date = formatter.date(from: apiGoal.target_date) ?? Date()
+        return Goal(
+            id: UUID(),
+            backendId: apiGoal.id,
+            title: apiGoal.title,
+            targetAmount: apiGoal.target_amount,
+            targetDate: date,
+            isCompleted: false,
+            completedDate: nil,
+            createdAt: Date()
+        )
+    }
+    
+    func updateGoal(id: Int, isCompleted: Bool? = nil, completedDate: Date? = nil, targetAmount: Double? = nil, targetDate: Date? = nil, title: String? = nil) async throws {
+        var status: String?
+        if let isCompleted = isCompleted {
+            status = isCompleted ? "ACHIEVED" : "ACTIVE"
+        }
+        
+        var dateString: String?
+        if let date = targetDate {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            dateString = formatter.string(from: date)
+        }
+        
+        let request = UpdateGoalRequest(
+            title: title,
+            status: status,
+            target_amount: targetAmount,
+            target_date: dateString
+        )
+        
+        let _: APIGoal = try await api.send("/goals/\(id)", method: "PATCH", body: request)
+    }
+}
+
+// MARK: - Private Request Models
+private struct CreateGoalRequest: Encodable {
+    let title: String
+    let target_amount: Double
+    let target_date: String
+    let status: String
+    let is_primary: Bool
+}
+
+private struct UpdateGoalRequest: Encodable {
+    let title: String?
+    let status: String?
+    let target_amount: Double?
+    let target_date: String?
 }

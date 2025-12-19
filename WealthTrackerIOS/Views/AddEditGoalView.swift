@@ -6,6 +6,7 @@ struct AddEditGoalView: View {
     
     var goalToEdit: Goal?
     
+    @State private var title = ""
     @State private var targetAmount = ""
     @State private var targetDate = Date()
     
@@ -19,6 +20,8 @@ struct AddEditGoalView: View {
                 
                 Form {
                     Section(header: Text("Goal Details").foregroundColor(.gray)) {
+                        TextField("Goal Title (Optional)", text: $title)
+                        
                         TextField("Target Amount (£)", text: $targetAmount)
                             .keyboardType(.decimalPad)
                         
@@ -46,6 +49,7 @@ struct AddEditGoalView: View {
             }
             .onAppear {
                 if let goal = goalToEdit {
+                    title = goal.title
                     targetAmount = String(format: "%.2f", goal.targetAmount)
                     targetDate = goal.targetDate
                 } else {
@@ -61,6 +65,7 @@ struct AddEditGoalView: View {
         
         if var goal = goalToEdit {
             // Edit existing
+            goal.title = title
             goal.targetAmount = amount
             goal.targetDate = targetDate
             viewModel.updateActiveGoal(goal)
@@ -68,6 +73,8 @@ struct AddEditGoalView: View {
             // Create new
             let newGoal = Goal(
                 id: UUID(),
+                backendId: nil,
+                title: title,
                 targetAmount: amount,
                 targetDate: targetDate,
                 isCompleted: false,
