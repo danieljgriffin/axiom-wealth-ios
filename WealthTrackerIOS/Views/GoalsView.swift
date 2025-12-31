@@ -26,6 +26,16 @@ struct GoalsView: View {
         appearance.setTitleTextAttributes([.foregroundColor: UIColor.lightGray], for: .normal)
         appearance.backgroundColor = UIColor(Color(hex: "#0B1220")) // Card BG
         appearance.selectedSegmentTintColor = UIColor(Color(hex: "#22C55E")) // Green
+        
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithOpaqueBackground()
+        navAppearance.backgroundColor = UIColor(Color(hex: "#050816"))
+        navAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
+        navAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
+        
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+        UINavigationBar.appearance().compactAppearance = navAppearance
     }
     
     var body: some View {
@@ -159,6 +169,7 @@ struct GoalsView: View {
                 AddEditGoalView(viewModel: viewModel, goalToEdit: goal)
             }
         }
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -336,15 +347,22 @@ struct CompletedGoalRow: View {
                     .font(.body)
                     .foregroundColor(.white)
                 
+                // Target Date
+                Text("Target: \(goal.targetDate.formatted(.dateTime.month().year()))")
+                    .font(.caption)
+                    .foregroundColor(textSecondary)
+                
+                // Completed Date
                 if let completedDate = goal.completedDate {
-                    Text("Achieved \(completedDate.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption)
-                        .foregroundColor(textSecondary)
+                    Text("Completed: \(completedDate.formatted(date: .long, time: .omitted))")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color(hex: "#22C55E"))
                 } else {
-                    // Implicitly achieved, so show target date context
-                    Text("Target: \(goal.targetDate.formatted(.dateTime.month().year()))")
-                        .font(.caption)
-                        .foregroundColor(textSecondary)
+                    // Fallback for legacy items without specific date
+                    Text("Completed: \(goal.targetDate.formatted(.dateTime.month().year()))")
+                        .font(.caption2)
+                        .foregroundColor(Color(hex: "#22C55E"))
                 }
             }
             Spacer()

@@ -33,14 +33,17 @@ class WealthService {
         let simpleFormatter = DateFormatter()
         simpleFormatter.dateFormat = "yyyy-MM-dd"
         simpleFormatter.locale = Locale(identifier: "en_US_POSIX")
+        simpleFormatter.timeZone = TimeZone(secondsFromGMT: 0)
         
         let isoFormatter = DateFormatter()
         isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS" // Python default for microsecond precision
         isoFormatter.locale = Locale(identifier: "en_US_POSIX")
+        isoFormatter.timeZone = TimeZone(secondsFromGMT: 0)
         
         let isoFormatterSeconds = DateFormatter()
         isoFormatterSeconds.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         isoFormatterSeconds.locale = Locale(identifier: "en_US_POSIX")
+        isoFormatterSeconds.timeZone = TimeZone(secondsFromGMT: 0)
         
         return data.compactMap { point in
             var date: Date? = nil
@@ -129,7 +132,7 @@ class WealthService {
                 targetAmount: apiGoal.target_amount,
                 targetDate: date,
                 isCompleted: apiGoal.status == "COMPLETED" || apiGoal.status == "ACHIEVED",
-                completedDate: nil,
+                completedDate: formatter.date(from: apiGoal.completed_date ?? ""),
                 createdAt: Date()
             )
         }

@@ -57,6 +57,7 @@ struct APIGoal: Codable {
     let target_date: String
     let status: String
     let is_primary: Bool?
+    let completed_date: String?
 }
 
 struct APIPlatformSummary: Codable {

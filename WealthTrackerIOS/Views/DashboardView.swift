@@ -258,8 +258,8 @@ struct PerformanceChartCard: View {
             }
             .chartYScale(domain: viewModel.yAxisDomain)
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 5)) { value in
-                    AxisValueLabel(format: xAxisFormat(for: viewModel.selectedRange))
+                AxisMarks(values: .automatic(desiredCount: 3)) { value in
+                    AxisValueLabel(format: xAxisFormat(for: viewModel.selectedRange), anchor: .center)
                         .foregroundStyle(textSecondary)
                         .font(.caption2)
                 }
