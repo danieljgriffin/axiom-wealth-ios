@@ -144,6 +144,11 @@ struct InvestmentsView: View {
             } message: {
                 Text("Enter the new cash balance for this platform.")
             }
+            .alert("Error", isPresented: $viewModel.showError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(viewModel.errorMessage ?? "An unknown error occurred")
+            }
         }
     }
 }

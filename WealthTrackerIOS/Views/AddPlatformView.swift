@@ -10,7 +10,24 @@ struct AddPlatformView: View {
     
     @State private var shouldDismiss = false
     
-    let colors = ["#22C55E", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"]
+    let colors = [
+        "#EF4444", // Red
+        "#F97316", // Orange
+        "#F59E0B", // Amber
+        "#84CC16", // Lime
+        "#10B981", // Emerald
+        "#06B6D4", // Cyan
+        "#3B82F6", // Blue
+        "#6366F1", // Indigo
+        "#8B5CF6", // Violet
+        "#D946EF", // Fuchsia
+        "#EC4899", // Pink
+        "#F43F5E", // Rose
+        "#9CA3AF", // Gray
+        "#64748B", // Slate
+        "#71717A", // Zinc
+        "#78350F", // Brown
+    ]
     
     var body: some View {
         NavigationView {
@@ -66,23 +83,23 @@ struct AddPlatformView: View {
                                 .cornerRadius(12)
                                 .foregroundColor(.white)
                             
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(colors, id: \.self) { color in
-                                        Circle()
-                                            .fill(Color(hex: color))
-                                            .frame(width: 40, height: 40)
-                                            .overlay(
-                                                Circle()
-                                                    .stroke(Color.white, lineWidth: selectedColor == color ? 3 : 0)
-                                            )
-                                            .onTapGesture {
-                                                selectedColor = color
-                                            }
-                                    }
+                            LazyVGrid(columns: [
+                                GridItem(.adaptive(minimum: 44))
+                            ], spacing: 12) {
+                                ForEach(colors, id: \.self) { color in
+                                    Circle()
+                                        .fill(Color(hex: color))
+                                        .frame(width: 44, height: 44)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white, lineWidth: selectedColor == color ? 3 : 0)
+                                        )
+                                        .onTapGesture {
+                                            selectedColor = color
+                                        }
                                 }
-                                .padding(.vertical, 4)
                             }
+                            .padding(.vertical, 8)
                         }
                     }
                     .padding(.horizontal)

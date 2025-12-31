@@ -13,10 +13,18 @@ struct AddInvestmentView: View {
     @State private var searchResults: [InvestmentSearchResult] = []
     @State private var isSearching = false
     
+    @State private var isConnectingWallet = false
+    @State private var xpubAddress = ""
+    
+    @State private var showError = false
+    @State private var errorMessage = ""
+    
     // Selected Investment Details
     @State private var name = ""
     @State private var symbol = ""
     @State private var currentPrice = ""
+    
+
     
     // Cost Entry
     @State private var shares = ""
@@ -62,104 +70,179 @@ struct AddInvestmentView: View {
                             }
                         }
                         
-                        // 2. Smart Search
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Find Investment")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
+                        if investmentToEdit == nil {
+                            // 2. Mode Selector (Manual vs Wallet)
                             HStack {
-                                TextField("Ticker (e.g. SGLN) or ISIN", text: $searchQuery)
-                                    .padding()
-                                    .background(Color.cardBg)
-                                    .cornerRadius(12)
-                                    .foregroundColor(.white)
-                                    .onChange(of: searchQuery) { _, newValue in
-                                        performSearch(query: newValue)
-                                    }
+                                Button(action: { isConnectingWallet = false }) {
+                                    Text("Manual Entry")
+                                        .fontWeight(.medium)
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 16)
+                                        .background(isConnectingWallet ? Color.clear : Color.blue)
+                                        .foregroundColor(isConnectingWallet ? .gray : .white)
+                                        .cornerRadius(8)
+                                }
                                 
-                                if isSearching {
-                                    ProgressView()
-                                        .tint(.white)
-                                        .padding(.leading, 8)
+                                Button(action: { isConnectingWallet = true }) {
+                                    Text("Connect Wallet")
+                                        .fontWeight(.medium)
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 16)
+                                        .background(isConnectingWallet ? Color.blue : Color.clear)
+                                        .foregroundColor(isConnectingWallet ? .white : .gray)
+                                        .cornerRadius(8)
                                 }
+                                Spacer()
                             }
-                            
-                            if !searchResults.isEmpty {
-                                VStack(spacing: 0) {
-                                    ForEach(searchResults) { result in
-                                        Button {
-                                            selectInvestment(result)
-                                        } label: {
-                                            HStack {
-                                                VStack(alignment: .leading) {
-                                                    Text(result.name)
-                                                        .font(.body)
-                                                        .foregroundColor(.white)
-                                                    Text(result.symbol)
-                                                        .font(.caption)
-                                                        .foregroundColor(.gray)
-                                                }
-                                                Spacer()
-                                                if result.currentPrice > 0 {
-                                                    Text(String(format: "%.2f", result.currentPrice))
-                                                        .font(.body)
-                                                        .foregroundColor(.positiveGreen)
-                                                }
-                                            }
-                                            .padding()
-                                            .background(Color.cardBg)
-                                        }
-                                        Divider().background(Color.gray.opacity(0.3))
-                                    }
-                                }
-                                .cornerRadius(12)
-                                .padding(.top, 4)
-                            }
+                            .padding(.vertical, 4)
                         }
                         
-                        // 3. Details & Cost
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Details")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            VStack(spacing: 12) {
-                                if !name.isEmpty {
-                                    DetailRow(label: "Name", value: name)
-                                    DetailRow(label: "Current Price", value: "£" + currentPrice)
-                                    Divider().background(Color.gray.opacity(0.3))
+                        if isConnectingWallet {
+                            // --- WALLET MODE ---
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Bitcoin Wallet (Read-Only)")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                VStack(spacing: 16) {
+                                    TextField("Wallet Name (e.g. Trezor)", text: $name)
+                                        .padding()
+                                        .background(Color.cardBg)
+                                        .cornerRadius(12)
+                                        .foregroundColor(.white)
+                                    
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        TextField("XPUB Address", text: $xpubAddress)
+                                            .padding()
+                                            .background(Color.cardBg)
+                                            .cornerRadius(12)
+                                            .foregroundColor(.white)
+                                        
+                                        Text("Paste your XPUB/ZPUB public key. We never ask for private keys.")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            }
+                        } else {
+                            // --- MANUAL MODE ---
+                            // 3. Smart Search
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Find Investment")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                HStack {
+                                    TextField("Ticker (e.g. SGLN) or ISIN", text: $searchQuery)
+                                        .padding()
+                                        .background(Color.cardBg)
+                                        .cornerRadius(12)
+                                        .foregroundColor(.white)
+                                        .onChange(of: searchQuery) { _, newValue in
+                                            performSearch(query: newValue)
+                                        }
+                                    
+                                    if isSearching {
+                                        ProgressView()
+                                            .tint(.white)
+                                            .padding(.leading, 8)
+                                    }
                                 }
                                 
-                                CustomTextField(label: "Shares", text: $shares, focused: $focusedField, field: .shares)
-                                    .keyboardType(.decimalPad)
-                                    .onChange(of: shares) { _, _ in recalculateFromShares() }
-                                
-                                CustomTextField(label: "Average Price", text: $averagePrice, focused: $focusedField, field: .averagePrice)
-                                    .keyboardType(.decimalPad)
-                                    .onChange(of: averagePrice) { _, _ in recalculateFromAvgPrice() }
-                                
-                                CustomTextField(label: "Total Cost", text: $totalCost, focused: $focusedField, field: .totalCost)
-                                    .keyboardType(.decimalPad)
-                                    .onChange(of: totalCost) { _, _ in recalculateFromTotalCost() }
+                                if !searchResults.isEmpty {
+                                    VStack(spacing: 0) {
+                                        ForEach(searchResults) { result in
+                                            Button {
+                                                selectInvestment(result)
+                                            } label: {
+                                                HStack {
+                                                    VStack(alignment: .leading) {
+                                                        Text(result.name)
+                                                            .font(.body)
+                                                            .foregroundColor(.white)
+                                                        Text(result.symbol)
+                                                            .font(.caption)
+                                                            .foregroundColor(.gray)
+                                                    }
+                                                    Spacer()
+                                                    if result.currentPrice > 0 {
+                                                        Text(String(format: "%.2f", result.currentPrice))
+                                                            .font(.body)
+                                                            .foregroundColor(.positiveGreen)
+                                                    }
+                                                }
+                                                .padding()
+                                                .background(Color.cardBg)
+                                            }
+                                            Divider().background(Color.gray.opacity(0.3))
+                                        }
+                                    }
+                                    .cornerRadius(12)
+                                    .padding(.top, 4)
+                                }
                             }
-                            .padding()
-                            .background(Color.cardBg)
-                            .cornerRadius(12)
-                        }
+                            
+                            // 4. Details & Cost
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Details")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                VStack(spacing: 12) {
+                                    if !name.isEmpty {
+                                        DetailRow(label: "Name", value: name)
+                                        DetailRow(label: "Current Price", value: "£" + currentPrice)
+                                        Divider().background(Color.gray.opacity(0.3))
+                                    }
+                                    
+                                    CustomTextField(label: "Shares", text: $shares, focused: $focusedField, field: .shares)
+                                        .keyboardType(.decimalPad)
+                                        .onChange(of: shares) { _, _ in recalculateFromShares() }
+                                    
+                                    CustomTextField(label: "Average Price", text: $averagePrice, focused: $focusedField, field: .averagePrice)
+                                        .keyboardType(.decimalPad)
+                                        .onChange(of: averagePrice) { _, _ in recalculateFromAvgPrice() }
+                                    
+                                    CustomTextField(label: "Total Cost", text: $totalCost, focused: $focusedField, field: .totalCost)
+                                        .keyboardType(.decimalPad)
+                                        .onChange(of: totalCost) { _, _ in recalculateFromTotalCost() }
+                                }
+                                .padding()
+                                .background(Color.cardBg)
+                                .cornerRadius(12)
+                            }
+                            
+                        } // End else
                     }
                     .padding()
                 }
                 }
                 .onAppear {
-                    if let investment = investmentToEdit, let platformId = editingPlatformId {
-                        selectedPlatformId = platformId
+                    if let investment = investmentToEdit {
                         name = investment.name
                         symbol = investment.symbol ?? ""
                         currentPrice = String(format: "%.2f", investment.currentPrice)
                         shares = String(format: "%g", investment.shares)
                         averagePrice = String(format: "%.2f", investment.averagePrice)
                         totalCost = String(format: "%.2f", investment.costBasis)
+                        
+                        // Populate Search Query so user sees what they are editing
+                        searchQuery = investment.symbol ?? investment.name
+                        
+                        // robust Platform Selection
+                        // 1. Try passed ID
+                        if let platformId = editingPlatformId {
+                            selectedPlatformId = platformId
+                        }
+                        
+                        // 2. Fallback: Find platform containing this investment
+                        if selectedPlatformId == nil {
+                            if let foundPlatform = viewModel.platforms.first(where: { plt in
+                                plt.investments.contains(where: { $0.id == investment.id })
+                            }) {
+                                selectedPlatformId = foundPlatform.id
+                            }
+                        }
                     }
                 }
 
@@ -174,11 +257,16 @@ struct AddInvestmentView: View {
                     Button("Save") {
                         saveInvestment()
                     }
-                    .disabled(selectedPlatformId == nil || name.isEmpty || shares.isEmpty)
-                    .foregroundColor((selectedPlatformId == nil || name.isEmpty || shares.isEmpty) ? .gray : .blue)
+                    .disabled(!isValid)
+                    .foregroundColor(!isValid ? .gray : .blue)
                 }
             }
             .preferredColorScheme(.dark)
+            .alert("Error", isPresented: $showError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
     
@@ -187,6 +275,17 @@ struct AddInvestmentView: View {
             return platform.name
         }
         return "Select Platform"
+    }
+    
+    var isValid: Bool {
+        if selectedPlatformId == nil { return false }
+        if name.isEmpty { return false }
+        
+        if isConnectingWallet {
+            return !xpubAddress.isEmpty
+        } else {
+            return !shares.isEmpty
+        }
     }
     
     // MARK: - Logic
@@ -198,6 +297,14 @@ struct AddInvestmentView: View {
                 isSearching = false
                 return
             }
+            
+            // Suppress initial search if it matches what we are editing
+            if let editing = investmentToEdit {
+                if query == editing.symbol || query == editing.name {
+                    return
+                }
+            }
+            
             isSearching = true
             // Debounce could be added here
             searchResults = await MarketDataService.shared.search(query: query)
@@ -250,8 +357,26 @@ struct AddInvestmentView: View {
     }
     
     private func saveInvestment() {
-        guard let platformId = selectedPlatformId,
-              let sharesDouble = Double(shares),
+        guard let platformId = selectedPlatformId else { return }
+        
+        if isConnectingWallet {
+            // Crypto Flow
+            let platformName = selectedPlatformName
+            Task {
+                do {
+                    try await viewModel.connectCryptoInvestment(platformName: platformName, name: name, xpub: xpubAddress)
+                    dismiss()
+                } catch {
+                    print("Failed to connect wallet: \(error)")
+                    errorMessage = "Failed to connect: \(error.localizedDescription)"
+                    showError = true
+                }
+            }
+            return
+        }
+        
+        // Manual Flow
+        guard let sharesDouble = Double(shares),
               let avgPriceDouble = Double(averagePrice),
               let currPriceDouble = Double(currentPrice) else { return }
         

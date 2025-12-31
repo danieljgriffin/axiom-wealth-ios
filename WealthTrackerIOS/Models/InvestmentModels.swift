@@ -41,6 +41,7 @@ struct InvestmentPlatform: Identifiable, Codable, Equatable {
 
 struct InvestmentPosition: Identifiable, Codable, Equatable {
     let id: UUID
+    var backendId: Int? // ID from the backend database (for deletion/updates)
     var name: String // e.g., "Vanguard S&P 500"
     var symbol: String? // e.g., "VUSA.L"
     var amountSpent: Double? // Preferred over shares * averagePrice

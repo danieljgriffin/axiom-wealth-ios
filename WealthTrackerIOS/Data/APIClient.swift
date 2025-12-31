@@ -1,11 +1,21 @@
 import Foundation
 
-enum APIError: Error {
-    case invalidURL
-    case serverError(statusCode: Int)
+enum APIError: Error, LocalizedError {
+    case invalidURL(String)
+    case serverError(statusCode: Int, message: String)
     case decodingError(Error)
     case unknown(Error)
     case noData
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL(let url): return "Invalid URL: \(url)"
+        case .serverError(let code, let msg): return "Server Error \(code): \(msg)"
+        case .decodingError(let error): return "Decoding Error: \(error.localizedDescription)"
+        case .unknown(let error): return "Unknown Error: \(error.localizedDescription)"
+        case .noData: return "No Data Received"
+        }
+    }
 }
 
 class APIClient {
@@ -30,8 +40,9 @@ class APIClient {
     }
     
     func fetch<T: Codable>(_ endpoint: String) async throws -> T {
-        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
-            throw APIError.invalidURL
+        let urlString = "\(baseURL)\(endpoint)"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL(urlString)
         }
         
         var request = URLRequest(url: url)
@@ -53,7 +64,7 @@ class APIClient {
         guard (200...299).contains(httpResponse.statusCode) else {
             let body = String(data: data, encoding: .utf8) ?? "No body"
             print("API Error: \(httpResponse.statusCode) - \(body)")
-            throw APIError.serverError(statusCode: httpResponse.statusCode)
+            throw APIError.serverError(statusCode: httpResponse.statusCode, message: body)
         }
         
         do {
@@ -67,8 +78,9 @@ class APIClient {
     
     // Helper to post/put data if needed primarily
     func send<T: Codable, U: Encodable>(_ endpoint: String, method: String = "POST", body: U?) async throws -> T {
-        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
-            throw APIError.invalidURL
+        let urlString = "\(baseURL)\(endpoint)"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL(urlString)
         }
         
         var request = URLRequest(url: url)
@@ -95,7 +107,7 @@ class APIClient {
         guard (200...299).contains(httpResponse.statusCode) else {
             let errorBody = String(data: data, encoding: .utf8) ?? ""
             print("API Error (\(method)): \(httpResponse.statusCode) - \(errorBody)")
-            throw APIError.serverError(statusCode: httpResponse.statusCode)
+            throw APIError.serverError(statusCode: httpResponse.statusCode, message: errorBody)
         }
         
         // For empty response interactions (like DELETE returning 204)

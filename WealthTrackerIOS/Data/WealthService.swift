@@ -86,6 +86,7 @@ class WealthService {
             let domainInvestments = apiPlatform.investments.map { apiInv -> InvestmentPosition in
                 return InvestmentPosition(
                     id: UUID(),
+                    backendId: apiInv.id,
                     name: apiInv.name,
                     symbol: apiInv.symbol,
                     amountSpent: apiInv.amount_spent,
@@ -198,9 +199,99 @@ class WealthService {
         
         let _: APIGoal = try await api.send("/goals/\(id)", method: "PATCH", body: request)
     }
+    func createPlatform(name: String, colorHex: String) async throws {
+        // 1. Ensure platform exists by setting 0 cash (if not already existing)
+        // This effectively "creates" it in the backend's view if it has no investments yet.
+        // If it exists, this just sets cash to 0 (or preserves if we change logic, but here we assume new).
+        // Actually, if we just want to register it, setting cash is a safe bet.
+        try await updatePlatformCash(platformName: name, amount: 0)
+        
+        // 2. Set the color
+        try await updatePlatformColor(platformName: name, colorHex: colorHex)
+    }
+    
+    func updatePlatformColor(platformName: String, colorHex: String) async throws {
+        // Endpoint: POST /holdings/platform/color?platform=...&color=...
+        // But checking router: @router.post("/platform/color") params are query params by default in FastAPI if not Body
+        // Let's check router signature: 
+        // def update_platform_color(platform: str, color: str, ...)
+        // Yes, query params.
+        
+        guard let encodedName = platformName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let encodedColor = colorHex.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            throw URLError(.badURL)
+        }
+        
+        // We use discardable result
+        let _: [String: String] = try await api.send("/holdings/platform/color?platform=\(encodedName)&color=\(encodedColor)", method: "POST", body: nil as String?)
+    }
+
+    func connectCryptoInvestment(platformName: String, name: String, xpub: String) async throws {
+        let request = ConnectCryptoRequest(
+            platform_id: platformName,
+            name: name,
+            xpub: xpub,
+            user_id: 1 // Hardcoded for now, similar to other services
+        )
+        
+        // We use discardable result since we just want to trigger it
+        let _: ConnectCryptoResponse = try await api.send("/crypto/connect-investment", method: "POST", body: request)
+    }
+
+    func deletePlatform(name: String) async throws {
+        guard let encodedName = name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            throw URLError(.badURL)
+        }
+        let _: [String: String] = try await api.send("/holdings/platform/\(encodedName)", method: "DELETE", body: nil as Bool?)
+    }
+    
+    func deleteInvestment(id: Int) async throws {
+        let _: [String: String] = try await api.send("/holdings/\(id)", method: "DELETE", body: nil as Bool?)
+    }
+    func addManualInvestment(platform: String, name: String, symbol: String?, shares: Double, amountSpent: Double, averagePrice: Double, currentPrice: Double) async throws {
+        let request = InvestmentCreateRequest(
+            platform: platform,
+            name: name,
+            symbol: symbol,
+            holdings: shares,
+            amount_spent: amountSpent,
+            average_buy_price: averagePrice,
+            current_price: currentPrice
+        )
+        // API returns the created object, but we discard it and reload via fetchHoldings
+        let _: APIInvestment = try await api.send("/holdings/", method: "POST", body: request)
+    }
+    
+    func updateManualInvestment(id: Int, platform: String?, name: String?, symbol: String?, shares: Double?, amountSpent: Double?, averagePrice: Double?, currentPrice: Double?) async throws {
+        let request = InvestmentUpdateRequest(
+            platform: platform,
+            name: name,
+            symbol: symbol,
+            holdings: shares,
+            amount_spent: amountSpent,
+            average_buy_price: averagePrice,
+            current_price: currentPrice
+        )
+        // API returns updated object
+        let _: APIInvestment = try await api.send("/holdings/\(id)", method: "PUT", body: request)
+    }
 }
 
 // MARK: - Private Request Models
+private struct ConnectCryptoRequest: Encodable {
+    let platform_id: String
+    let name: String
+    let xpub: String
+    let user_id: Int
+}
+
+private struct ConnectCryptoResponse: Codable {
+    let status: String
+    let investment_id: Int
+    let wallet_id: Int
+    let message: String
+}
+
 private struct CreateGoalRequest: Encodable {
     let title: String
     let target_amount: Double
@@ -214,4 +305,24 @@ private struct UpdateGoalRequest: Encodable {
     let status: String?
     let target_amount: Double?
     let target_date: String?
+}
+
+private struct InvestmentCreateRequest: Encodable {
+    let platform: String
+    let name: String
+    let symbol: String?
+    let holdings: Double
+    let amount_spent: Double
+    let average_buy_price: Double
+    let current_price: Double
+}
+
+private struct InvestmentUpdateRequest: Encodable {
+    let platform: String?
+    let name: String?
+    let symbol: String?
+    let holdings: Double?
+    let amount_spent: Double?
+    let average_buy_price: Double?
+    let current_price: Double?
 }

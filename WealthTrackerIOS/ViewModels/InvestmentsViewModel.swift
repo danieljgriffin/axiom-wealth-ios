@@ -6,6 +6,10 @@ class InvestmentsViewModel: ObservableObject {
     @Published var platforms: [InvestmentPlatform] = []
     @Published var isLoading = false
     
+    // Error Handling
+    @Published var errorMessage: String?
+    @Published var showError: Bool = false
+    
     // Summary properties
     var totalValue: Double {
         platforms.reduce(0) { $0 + $1.totalValue }
@@ -62,27 +66,136 @@ class InvestmentsViewModel: ObservableObject {
     // For this task (Read-only integration focus check?), we prioritize reading.
     
     func addPlatform(name: String, colorHex: String) {
-        // Todo: Call API
+        Task {
+            isLoading = true
+            defer { isLoading = false }
+            
+            do {
+                try await WealthService.shared.createPlatform(name: name, colorHex: colorHex)
+                await loadData()
+            } catch {
+                print("Failed to add platform: \(error)")
+                await MainActor.run {
+                    self.errorMessage = "Failed to add platform: \(error.localizedDescription)"
+                    self.showError = true
+                }
+            }
+        }
     }
     
     func addInvestment(to platformId: UUID, investment: InvestmentPosition) {
-        // Todo: Call API
+        guard let platform = platforms.first(where: { $0.id == platformId }) else { return }
+        
+        Task {
+            isLoading = true
+            defer { isLoading = false }
+            do {
+                try await WealthService.shared.addManualInvestment(
+                    platform: platform.name,
+                    name: investment.name,
+                    symbol: investment.symbol,
+                    shares: investment.shares,
+                    amountSpent: investment.costBasis,
+                    averagePrice: investment.averagePrice,
+                    currentPrice: investment.currentPrice
+                )
+                await loadData()
+            } catch {
+                print("Failed to add investment: \(error)")
+                await MainActor.run {
+                    self.errorMessage = "Failed to add investment: \(error.localizedDescription)"
+                    self.showError = true
+                }
+            }
+        }
     }
     
     func deletePlatform(id: UUID) {
-        // Todo: Call API
+        // Find the platform by ID
+        guard let platform = platforms.first(where: { $0.id == id }) else { return }
+        
+        Task {
+            do {
+                try await WealthService.shared.deletePlatform(name: platform.name)
+                await loadData()
+            } catch {
+                print("Failed to delete platform: \(error)")
+                await MainActor.run {
+                    self.errorMessage = "Failed to delete platform: \(error.localizedDescription)"
+                    self.showError = true
+                }
+            }
+        }
     }
     
     func deleteInvestment(id: UUID, from platformId: UUID) {
-        // Todo: Call API
+        // Find platform and investment
+        guard let platform = platforms.first(where: { $0.id == platformId }),
+              let investment = platform.investments.first(where: { $0.id == id }),
+              let backendId = investment.backendId else {
+            print("Cannot delete investment: Missing backend ID")
+            Task { @MainActor in
+                self.errorMessage = "Cannot delete this investment: Missing Backend ID. Try pulling to refresh."
+                self.showError = true
+            }
+            return
+        }
+        
+        Task {
+            do {
+                try await WealthService.shared.deleteInvestment(id: backendId)
+                await loadData()
+            } catch {
+                print("Failed to delete investment: \(error)")
+                await MainActor.run {
+                    self.errorMessage = "Failed to delete investment: \(error.localizedDescription)"
+                    self.showError = true
+                }
+            }
+        }
     }
     
     func updatePlatform(_ platform: InvestmentPlatform) {
-       // Todo: Call API
+       // Platform update logic (rename/color) is separate.
     }
     
     func updateInvestment(in platformId: UUID, investment: InvestmentPosition) {
-        // Todo: Call API
+        // We need the backendID to update. 
+        // Note: The 'investment' passed here is the NEW state from the form, but it should preserve the ID from the original.
+        guard let backendId = investment.backendId else {
+             print("Cannot update investment: Missing backend ID")
+             Task { @MainActor in
+                 self.errorMessage = "Cannot update: Missing Backend ID."
+                 self.showError = true
+             }
+             return
+        }
+        
+        guard let platform = platforms.first(where: { $0.id == platformId }) else { return }
+        
+        Task {
+            isLoading = true
+            defer { isLoading = false }
+            do {
+                try await WealthService.shared.updateManualInvestment(
+                    id: backendId,
+                    platform: platform.name, // Allow moving platforms if UI supports it
+                    name: investment.name,
+                    symbol: investment.symbol,
+                    shares: investment.shares,
+                    amountSpent: investment.costBasis,
+                    averagePrice: investment.averagePrice,
+                    currentPrice: investment.currentPrice
+                )
+                await loadData()
+            } catch {
+               print("Failed to update investment: \(error)")
+                await MainActor.run {
+                    self.errorMessage = "Failed to update investment: \(error.localizedDescription)"
+                    self.showError = true
+                }
+            }
+        }
     }
     
     @MainActor
@@ -212,6 +325,17 @@ class InvestmentsViewModel: ObservableObject {
             platforms.append(newPlatform)
             saveToPersistence()
         }
+    }
+    
+    @MainActor
+    func connectCryptoInvestment(platformName: String, name: String, xpub: String) async throws {
+        isLoading = true
+        defer { isLoading = false }
+        
+        try await WealthService.shared.connectCryptoInvestment(platformName: platformName, name: name, xpub: xpub)
+        
+        // Refresh data to show new investment
+        await loadData()
     }
     
     func updatePlatformCash(platformId: UUID, amount: Double) {
