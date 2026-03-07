@@ -9,6 +9,7 @@ struct DashboardView: View {
     @AppStorage("isPrivateMode") private var isPrivateMode = false
     
     @State private var showingGoals = false
+    @State private var showingShareCard = false
     
     // Colors
     private let bgDark = Color(hex: "#050816")
@@ -22,7 +23,7 @@ struct DashboardView: View {
             VStack(spacing: 20) {
                 // Header Section (Not in a card)
                 VStack(spacing: 16) {
-                    NetWorthHeader(viewModel: viewModel, isPrivateMode: $isPrivateMode, textSecondary: textSecondary)
+                    NetWorthHeader(viewModel: viewModel, isPrivateMode: $isPrivateMode, showingShareCard: $showingShareCard, textSecondary: textSecondary)
                     
                     // Mini Cards Row
                     HStack(spacing: 12) {
@@ -77,6 +78,9 @@ struct DashboardView: View {
         .sheet(isPresented: $showingGoals) {
             GoalsView(viewModel: goalsViewModel, currentNetWorth: viewModel.summary.currentNetWorth)
         }
+        .fullScreenCover(isPresented: $showingShareCard) {
+            ShareCardView(viewModel: viewModel)
+        }
     }
 }
 
@@ -85,6 +89,7 @@ struct DashboardView: View {
 struct NetWorthHeader: View {
     @ObservedObject var viewModel: DashboardViewModel
     @Binding var isPrivateMode: Bool
+    @Binding var showingShareCard: Bool
     let textSecondary: Color
     
     var body: some View {
@@ -114,16 +119,28 @@ struct NetWorthHeader: View {
                 
                 Spacer()
                 
-                Button(action: {
-                    withAnimation {
-                        isPrivateMode.toggle()
+                HStack(spacing: 8) {
+                    Button(action: {
+                        showingShareCard = true
+                    }) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundColor(textSecondary)
+                            .padding(8)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
                     }
-                }) {
-                    Image(systemName: isPrivateMode ? "eye.slash.fill" : "eye.fill")
-                        .foregroundColor(textSecondary)
-                        .padding(8)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
+                    
+                    Button(action: {
+                        withAnimation {
+                            isPrivateMode.toggle()
+                        }
+                    }) {
+                        Image(systemName: isPrivateMode ? "eye.slash.fill" : "eye.fill")
+                            .foregroundColor(textSecondary)
+                            .padding(8)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
+                    }
                 }
             }
         }
@@ -329,7 +346,7 @@ struct PerformanceChartCard: View {
             return .dateTime.weekday()
         case .m1, .m3:
             return .dateTime.day().month()
-        case .m6, .y1, .max:
+        case .m6, .y1, .max, .ytd:
             return .dateTime.month().year()
         }
     }

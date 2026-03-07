@@ -48,6 +48,7 @@ struct MockPortfolioData {
             w1: generateDailyPoints(days: 7, startValue: baseValue - 500, volatility: 200, trend: 50),
             m1: generateDailyPoints(days: 30, startValue: baseValue + 5739, volatility: 300, trend: -150),
             m3: generateDailyPoints(days: 90, startValue: baseValue - 2000, volatility: 400, trend: 30),
+            ytd: generateDailyPoints(days: 66, startValue: baseValue - 3000, volatility: 350, trend: 40),
             m6: generateDailyPoints(days: 180, startValue: baseValue - 8000, volatility: 500, trend: 50),
             y1: generateDailyPoints(days: 365, startValue: baseValue - 19928, volatility: 600, trend: 60),
             max: generateDailyPoints(days: 730, startValue: 80000, volatility: 800, trend: 50)

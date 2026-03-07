@@ -25,6 +25,7 @@ struct PerformanceSeries: Codable {
     let w1: [NetWorthPoint]
     let m1: [NetWorthPoint]
     let m3: [NetWorthPoint]
+    let ytd: [NetWorthPoint]
     let m6: [NetWorthPoint]
     let y1: [NetWorthPoint]
     let max: [NetWorthPoint]
@@ -35,6 +36,7 @@ struct PerformanceSeries: Codable {
         case .w1: return w1
         case .m1: return m1
         case .m3: return m3
+        case .ytd: return ytd
         case .m6: return m6
         case .y1: return y1
         case .max: return max
