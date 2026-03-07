@@ -357,38 +357,30 @@ struct ShareCardView: View {
     // MARK: - Helpers
     
     private var changeForSelectedRange: Double {
-        // Use the dashboard's existing calculations for known ranges
-        switch selectedRange {
-        case .ytd, .y1, .max:
+        // YTD uses the dashboard's trusted "THIS YEAR" calculation
+        if selectedRange == .ytd {
             return viewModel.summary.yearChangePercent
-        case .m1:
-            return viewModel.summary.monthChangePercent
-        default:
-            // For other ranges, calculate from chart data
-            guard shareChartData.count >= 2,
-                  let firstValue = shareChartData.first?.value,
-                  let lastValue = shareChartData.last?.value,
-                  firstValue > 0 else {
-                return viewModel.summary.monthChangePercent
-            }
-            return ((lastValue - firstValue) / firstValue) * 100
         }
+        // All other ranges: calculate from the chart's actual data points
+        guard shareChartData.count >= 2,
+              let firstValue = shareChartData.first?.value,
+              let lastValue = shareChartData.last?.value,
+              firstValue > 0 else {
+            return 0
+        }
+        return ((lastValue - firstValue) / firstValue) * 100
     }
     
     private var changeAmountForSelectedRange: Double {
-        switch selectedRange {
-        case .ytd, .y1, .max:
+        if selectedRange == .ytd {
             return viewModel.summary.yearChange
-        case .m1:
-            return viewModel.summary.monthChange
-        default:
-            guard shareChartData.count >= 2,
-                  let firstValue = shareChartData.first?.value,
-                  let lastValue = shareChartData.last?.value else {
-                return viewModel.summary.monthChange
-            }
-            return lastValue - firstValue
         }
+        guard shareChartData.count >= 2,
+              let firstValue = shareChartData.first?.value,
+              let lastValue = shareChartData.last?.value else {
+            return 0
+        }
+        return lastValue - firstValue
     }
     
     private func xAxisFormat(for range: TimeRange) -> Date.FormatStyle {
