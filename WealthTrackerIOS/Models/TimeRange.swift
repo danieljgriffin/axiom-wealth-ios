@@ -5,9 +5,9 @@ enum TimeRange: String, CaseIterable, Identifiable, Codable {
     case w1 = "1W"
     case m1 = "1M"
     case m3 = "3M"
-    case ytd = "YTD"
     case m6 = "6M"
     case y1 = "1Y"
+    case ytd = "YTD"
     case max = "MAX"
     
     var id: String { rawValue }
