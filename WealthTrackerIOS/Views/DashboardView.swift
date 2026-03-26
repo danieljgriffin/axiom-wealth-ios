@@ -258,6 +258,7 @@ struct PerformanceChartCard: View {
                     .symbolSize(50)
                 }
             }
+            .id(viewModel.selectedRange)
             .chartYAxis {
                 AxisMarks(position: .trailing, values: viewModel.yAxisTicks) { value in
                     AxisGridLine()
@@ -306,7 +307,11 @@ struct PerformanceChartCard: View {
             // Time Range Selector
             HStack(spacing: 0) {
                 ForEach(TimeRange.allCases) { range in
-                    Button(action: { viewModel.updateRange(range) }) {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            viewModel.updateRange(range)
+                        }
+                    }) {
                         Group {
                             Text(range.rawValue)
                         }
