@@ -10,6 +10,8 @@ struct DashboardView: View {
     
     @State private var showingGoals = false
     @State private var showingShareCard = false
+    @State private var showConfetti = false
+    @State private var isCompletingGoal = false
     
     // Colors
     private let bgDark = Color(hex: "#050816")
@@ -58,10 +60,14 @@ struct DashboardView: View {
                     dashboardViewModel: viewModel,
                     isPrivateMode: isPrivateMode,
                     cardBg: cardBg,
-                    textSecondary: textSecondary
+                    textSecondary: textSecondary,
+                    showConfetti: $showConfetti,
+                    isCompleting: $isCompletingGoal
                 )
                 .onTapGesture {
-                    showingGoals = true
+                    if dashboardViewModel.summary.currentNetWorth < (goalsViewModel.activeGoal?.targetAmount ?? Double.infinity) {
+                        showingGoals = true
+                    }
                 }
                 
                 BreakdownCard(viewModel: viewModel, isPrivateMode: isPrivateMode, cardBg: cardBg, textSecondary: textSecondary, positiveGreen: positiveGreen, negativeRed: negativeRed)
@@ -69,6 +75,14 @@ struct DashboardView: View {
             .padding(.bottom, 20)
         }
         .background(bgDark.ignoresSafeArea())
+        .overlay(
+            Group {
+                if showConfetti {
+                    ConfettiView()
+                        .ignoresSafeArea()
+                }
+            }
+        )
         .onAppear {
             viewModel.update(with: investmentsViewModel.platforms)
         }
@@ -365,12 +379,70 @@ struct GoalCard: View {
     var isPrivateMode: Bool
     let cardBg: Color
     let textSecondary: Color
+    @Binding var showConfetti: Bool
+    @Binding var isCompleting: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let goal = goalsViewModel.activeGoal {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
+                let isGoalReached = dashboardViewModel.summary.currentNetWorth >= goal.targetAmount
+                
+                if isGoalReached {
+                    VStack(spacing: 16) {
+                        HStack {
+                            Image(systemName: "trophy.fill")
+                                .font(.title)
+                                .foregroundColor(.yellow)
+                            Text("Goal Reached! 🎉")
+                                .font(.title2.bold())
+                                .foregroundColor(.white)
+                        }
+                        .padding(.top, 8)
+                        
+                        Text("You've hit your target of \(goal.targetAmount.formatted(.currency(code: "GBP").precision(.fractionLength(0))))")
+                            .font(.subheadline)
+                            .foregroundColor(textSecondary)
+                            .applyPrivacyBlur(isPrivateMode)
+                            .multilineTextAlignment(.center)
+                            .padding(.bottom, 8)
+                        
+                        Button(action: {
+                            isCompleting = true
+                            
+                            // Trigger Confetti
+                            showConfetti = true
+                            
+                            // Call ViewModel
+                            goalsViewModel.markActiveGoalAsCompleted()
+                            
+                            // Clean up
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                isCompleting = false
+                                showConfetti = false
+                            }
+                        }) {
+                            HStack {
+                                if isCompleting {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Image(systemName: "checkmark.circle.fill")
+                                    Text("Complete Goal")
+                                }
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(LinearGradient(colors: [Color(hex: "#22D3EE"), Color(hex: "#3B82F6")], startPoint: .leading, endPoint: .trailing))
+                            .cornerRadius(12)
+                            .shadow(color: Color(hex: "#3B82F6").opacity(0.3), radius: 10, x: 0, y: 5)
+                        }
+                        .disabled(isCompleting)
+                    }
+                } else {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .center, spacing: 8) {
                             Group {
                                 Text("Current Goal")

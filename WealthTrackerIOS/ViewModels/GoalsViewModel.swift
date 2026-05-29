@@ -132,18 +132,13 @@ class GoalsViewModel: ObservableObject {
             // 1. Explicitly Completed
             let explicitlyCompleted = goals.filter { $0.isCompleted }
             
-            // 2. Mathematically Achieved (but not marked completed)
-            let implicitlyAchieved = goals.filter { !$0.isCompleted && $0.targetAmount <= currentNetWorth }
+            // 2. True Remaining Targets (including ones we hit but haven't marked completed)
+            let incomplete = goals.filter { !$0.isCompleted }.sorted { $0.targetDate < $1.targetDate }
             
-            // 3. True Remaining Targets
-            let incomplete = goals.filter { !$0.isCompleted && $0.targetAmount > currentNetWorth }.sorted { $0.targetDate < $1.targetDate }
-            
-            // Merge Completed & Achieved for History
             // We want latest first for history
-            let allCompleted = (explicitlyCompleted + implicitlyAchieved).sorted { 
+            self.completedGoals = explicitlyCompleted.sorted { 
                 ($0.completedDate ?? $0.targetDate) > ($1.completedDate ?? $1.targetDate) 
             }
-            self.completedGoals = allCompleted
             
             // Pick first uncompleted as active (Current Focus)
             self.activeGoal = incomplete.first
