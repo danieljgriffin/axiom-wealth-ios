@@ -129,7 +129,6 @@ class DashboardViewModel: ObservableObject {
             
             if let perfData = self.summary.platformPerformance {
                  self.platforms = self.platforms.map { item in
-                     var newItem = item
                      if let match = perfData.first(where: { $0.platform == item.name }) {
                          // Create new item with updated stats (structs are immutable)
                          return DashboardPlatformItem(

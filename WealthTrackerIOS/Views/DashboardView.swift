@@ -65,7 +65,7 @@ struct DashboardView: View {
                     isCompleting: $isCompletingGoal
                 )
                 .onTapGesture {
-                    if dashboardViewModel.summary.currentNetWorth < (goalsViewModel.activeGoal?.targetAmount ?? Double.infinity) {
+                    if viewModel.summary.currentNetWorth < (goalsViewModel.activeGoal?.targetAmount ?? Double.infinity) {
                         showingGoals = true
                     }
                 }
@@ -214,137 +214,9 @@ struct PerformanceChartCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Group {
-                    Text("Portfolio")
-                }
-                .font(Font.system(.headline, design: .rounded))
-                .foregroundColor(.white)
-                Spacer()
-                if let selected = selectedPoint {
-                    VStack(alignment: .trailing) {
-                        Group {
-                            Text(selected.value, format: .currency(code: "GBP").precision(.fractionLength(0)))
-                        }
-                        .font(Font.system(.caption, design: .monospaced))
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .applyPrivacyBlur(isPrivateMode)
-                            
-                        Group {
-                            Text(selected.timestamp, format: .dateTime.day().month().hour().minute())
-                        }
-                        .font(Font.system(.caption2, design: .rounded))
-                        .foregroundColor(textSecondary)
-                    }
-                    .padding(4)
-                    .background(Color.black.opacity(0.5))
-                    .cornerRadius(4)
-                }
-            }
-            
-            Chart {
-                ForEach(viewModel.currentSeries) { point in
-                    LineMark(
-                        x: .value("Date", point.timestamp),
-                        y: .value("Value", point.value)
-                    )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color(hex: "#22D3EE"), Color(hex: "#3B82F6")],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .interpolationMethod(.catmullRom)
-                }
-                
-                if let selected = selectedPoint {
-                    RuleMark(x: .value("Date", selected.timestamp))
-                        .foregroundStyle(Color.white.opacity(0.5))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [5]))
-                    
-                    PointMark(
-                        x: .value("Date", selected.timestamp),
-                        y: .value("Value", selected.value)
-                    )
-                    .foregroundStyle(Color.white)
-                    .symbolSize(50)
-                }
-            }
-            .id(viewModel.selectedRange)
-            .chartYAxis {
-                AxisMarks(position: .trailing, values: viewModel.yAxisTicks) { value in
-                    AxisGridLine()
-                    AxisValueLabel {
-                        if let doubleValue = value.as(Double.self) {
-                            Group {
-                                Text(doubleValue, format: .currency(code: "GBP").precision(.fractionLength(0)))
-                            }
-                            .foregroundStyle(textSecondary)
-                            .font(.caption2)
-                            .applyPrivacyBlur(isPrivateMode)
-                        }
-                    }
-                }
-            }
-            .chartYScale(domain: viewModel.yAxisDomain)
-            .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 3)) { value in
-                    AxisValueLabel(format: xAxisFormat(for: viewModel.selectedRange), anchor: .center)
-                        .foregroundStyle(textSecondary)
-                        .font(.caption2)
-                }
-            }
-            .chartOverlay { proxy in
-                GeometryReader { geometry in
-                    Rectangle().fill(.clear).contentShape(Rectangle())
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    let x = value.location.x - geometry[proxy.plotAreaFrame].origin.x
-                                    if let date: Date = proxy.value(atX: x) {
-                                        // Find nearest point
-                                        if let nearest = viewModel.currentSeries.min(by: { abs($0.timestamp.timeIntervalSince(date)) < abs($1.timestamp.timeIntervalSince(date)) }) {
-                                            selectedPoint = nearest
-                                        }
-                                    }
-                                }
-                                .onEnded { _ in
-                                    selectedPoint = nil
-                                }
-                        )
-                }
-            }
-            .frame(height: 220)
-            
-            // Time Range Selector
-            HStack(spacing: 0) {
-                ForEach(TimeRange.allCases) { range in
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            viewModel.updateRange(range)
-                        }
-                    }) {
-                        Group {
-                            Text(range.rawValue)
-                        }
-                        .font(Font.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundColor(viewModel.selectedRange == range ? .white : textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            viewModel.selectedRange == range ?
-                            LinearGradient(colors: [Color(hex: "#22D3EE"), Color(hex: "#3B82F6")], startPoint: .leading, endPoint: .trailing) :
-                            LinearGradient(colors: [.clear], startPoint: .leading, endPoint: .trailing)
-                        )
-                        .cornerRadius(8)
-                    }
-                }
-            }
-            .padding(4)
-            .background(Color.black.opacity(0.2))
-            .cornerRadius(12)
+            chartHeaderView
+            chartView
+            timeRangeSelectorView
         }
         .padding(20)
         .background(cardBg)
@@ -355,6 +227,150 @@ struct PerformanceChartCard: View {
                 .stroke(Color.white.opacity(0.05), lineWidth: 1)
                 .padding(.horizontal)
         )
+    }
+    
+    // MARK: - Chart Header
+    
+    private var chartHeaderView: some View {
+        HStack {
+            Group {
+                Text("Portfolio")
+            }
+            .font(Font.system(.headline, design: .rounded))
+            .foregroundColor(.white)
+            Spacer()
+            if let selected = selectedPoint {
+                VStack(alignment: .trailing) {
+                    Group {
+                        Text(selected.value, format: .currency(code: "GBP").precision(.fractionLength(0)))
+                    }
+                    .font(Font.system(.caption, design: .monospaced))
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .applyPrivacyBlur(isPrivateMode)
+                        
+                    Group {
+                        Text(selected.timestamp, format: .dateTime.day().month().hour().minute())
+                    }
+                    .font(Font.system(.caption2, design: .rounded))
+                    .foregroundColor(textSecondary)
+                }
+                .padding(4)
+                .background(Color.black.opacity(0.5))
+                .cornerRadius(4)
+            }
+        }
+    }
+    
+    // MARK: - Chart
+    
+    private var chartView: some View {
+        Chart {
+            ForEach(viewModel.currentSeries) { point in
+                LineMark(
+                    x: .value("Date", point.timestamp),
+                    y: .value("Value", point.value)
+                )
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color(hex: "#22D3EE"), Color(hex: "#3B82F6")],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .interpolationMethod(.catmullRom)
+            }
+            
+            if let selected = selectedPoint {
+                RuleMark(x: .value("Date", selected.timestamp))
+                    .foregroundStyle(Color.white.opacity(0.5))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [5]))
+                
+                PointMark(
+                    x: .value("Date", selected.timestamp),
+                    y: .value("Value", selected.value)
+                )
+                .foregroundStyle(Color.white)
+                .symbolSize(50)
+            }
+        }
+        .id(viewModel.selectedRange)
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: viewModel.yAxisTicks) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let doubleValue = value.as(Double.self) {
+                        Group {
+                            Text(doubleValue, format: .currency(code: "GBP").precision(.fractionLength(0)))
+                        }
+                        .foregroundStyle(textSecondary)
+                        .font(.caption2)
+                        .applyPrivacyBlur(isPrivateMode)
+                    }
+                }
+            }
+        }
+        .chartYScale(domain: viewModel.yAxisDomain)
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                AxisValueLabel(format: xAxisFormat(for: viewModel.selectedRange), anchor: .center)
+                    .foregroundStyle(textSecondary)
+                    .font(.caption2)
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle().fill(.clear).contentShape(Rectangle())
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                guard let plotFrame = proxy.plotFrame else { return }
+                                let x = value.location.x - geometry[plotFrame].origin.x
+                                if let date: Date = proxy.value(atX: x) {
+                                    // Find nearest point
+                                    if let nearest = viewModel.currentSeries.min(by: { abs($0.timestamp.timeIntervalSince(date)) < abs($1.timestamp.timeIntervalSince(date)) }) {
+                                        selectedPoint = nearest
+                                    }
+                                }
+                            }
+                            .onEnded { _ in
+                                selectedPoint = nil
+                            }
+                    )
+            }
+        }
+        .frame(height: 220)
+    }
+    
+    // MARK: - Time Range Selector
+    
+    private var timeRangeSelectorView: some View {
+        HStack(spacing: 0) {
+            ForEach(TimeRange.allCases) { range in
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        viewModel.updateRange(range)
+                    }
+                }) {
+                    Group {
+                        Text(range.rawValue)
+                    }
+                    .font(Font.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(viewModel.selectedRange == range ? .white : textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        viewModel.selectedRange == range ?
+                        LinearGradient(colors: [Color(hex: "#22D3EE"), Color(hex: "#3B82F6")], startPoint: .leading, endPoint: .trailing) :
+                        LinearGradient(colors: [.clear], startPoint: .leading, endPoint: .trailing)
+                    )
+                    .cornerRadius(8)
+                }
+            }
+        }
+        .padding(4)
+        .background(Color.black.opacity(0.2))
+        .cornerRadius(12)
     }
     
     private func xAxisFormat(for range: TimeRange) -> Date.FormatStyle {
@@ -544,6 +560,7 @@ struct GoalCard: View {
                         .foregroundColor(.white)
                         .applyPrivacyBlur(isPrivateMode)
                     }
+                }
                 }
             } else {
                 // Empty State
