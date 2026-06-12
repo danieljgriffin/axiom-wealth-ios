@@ -10,25 +10,20 @@ class MarketDataService {
     func search(query: String) async -> [InvestmentSearchResult] {
         guard !query.isEmpty else { return [] }
         
-        let urlString = "https://query2.finance.yahoo.com/v1/finance/search?q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-        guard let url = URL(string: urlString) else { return [] }
-        
-        var request = URLRequest(url: url)
-        request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
+        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return [] }
         
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let response = try JSONDecoder().decode(YahooSearchResponse.self, from: data)
+            let results: [BackendSearchResult] = try await APIClient.shared.fetch("/holdings/search?q=\(encodedQuery)&limit=15")
             
-            return response.quotes.map { quote in
+            return results.map { result in
                 InvestmentSearchResult(
-                    symbol: quote.symbol,
-                    name: quote.shortname ?? quote.longname ?? quote.symbol,
-                    currentPrice: 0.0 // Search doesn't return reliable price
+                    symbol: result.symbol,
+                    name: result.name,
+                    currentPrice: 0.0 // Search doesn't return reliable price immediately
                 )
             }
         } catch {
-            print("Search error: \(error)")
+            print("Backend search error: \(error)")
             return []
         }
     }
@@ -41,6 +36,7 @@ class MarketDataService {
         
         var request = URLRequest(url: url)
         request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
+        request.setValue("GUCS=Ww==", forHTTPHeaderField: "Cookie")
         
         let (data, _) = try await URLSession.shared.data(for: request)
         let response = try JSONDecoder().decode(YahooChartResponse.self, from: data)
@@ -60,6 +56,7 @@ class MarketDataService {
         
         var request = URLRequest(url: url)
         request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
+        request.setValue("GUCS=Ww==", forHTTPHeaderField: "Cookie")
         
         let (data, _) = try await URLSession.shared.data(for: request)
         let response = try JSONDecoder().decode(YahooQuoteResponse.self, from: data)
@@ -167,15 +164,13 @@ struct MarketMetadata {
     let regularMarketPrice: Double?
 }
 
-// Yahoo API Models
-private struct YahooSearchResponse: Codable {
-    let quotes: [YahooQuote]
-}
-
-private struct YahooQuote: Codable {
+// Backend API Models
+private struct BackendSearchResult: Codable {
     let symbol: String
-    let shortname: String?
-    let longname: String?
+    let name: String
+    let type: String
+    let exchange: String
+    let currency: String
 }
 
 // New Quote API Models
