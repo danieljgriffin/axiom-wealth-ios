@@ -1,6 +1,11 @@
 import SwiftUI
 import Charts
 
+private enum DashboardMetricMode: String, CaseIterable {
+    case netWorth
+    case performance
+}
+
 struct DashboardView: View {
     @StateObject private var viewModel = DashboardViewModel()
     @StateObject private var goalsViewModel = GoalsViewModel()
@@ -12,6 +17,7 @@ struct DashboardView: View {
     @State private var showingShareCard = false
     @State private var showConfetti = false
     @State private var isCompletingGoal = false
+    @State private var metricMode: DashboardMetricMode = .netWorth
     
     // Colors
     private let bgDark = Color(hex: "#050816")
@@ -24,36 +30,28 @@ struct DashboardView: View {
         ScrollView {
             VStack(spacing: 20) {
                 // Header Section (Not in a card)
-                VStack(spacing: 16) {
+                VStack(spacing: 14) {
                     NetWorthHeader(viewModel: viewModel, isPrivateMode: $isPrivateMode, showingShareCard: $showingShareCard, textSecondary: textSecondary)
-                    
-                    // Mini Cards Row
-                    HStack(spacing: 12) {
-                        StatBox(
-                            title: "THIS MONTH",
-                            value: viewModel.summary.monthChange,
-                            percent: viewModel.summary.monthChangePercent,
-                            cardBg: cardBg,
-                            positiveGreen: positiveGreen,
-                            negativeRed: negativeRed,
-                            isPrivate: false // Change is always visible
-                        )
-                        
-                        StatBox(
-                            title: "THIS YEAR",
-                            value: viewModel.summary.yearChange,
-                            percent: viewModel.summary.yearChangePercent,
-                            cardBg: cardBg,
-                            positiveGreen: positiveGreen,
-                            negativeRed: negativeRed,
-                            isPrivate: false // Change is always visible
-                        )
-                    }
+
+                    DashboardPeriodSummaryCard(
+                        metricMode: $metricMode,
+                        summary: viewModel.summary,
+                        cardBg: cardBg,
+                        positiveGreen: positiveGreen,
+                        negativeRed: negativeRed,
+                        textSecondary: textSecondary
+                    )
                 }
                 .padding(.horizontal)
-                .padding(.top, 20)
+                .padding(.top, 8)
                 
-                PerformanceChartCard(viewModel: viewModel, isPrivateMode: isPrivateMode, cardBg: cardBg, textSecondary: textSecondary)
+                PerformanceChartCard(
+                    viewModel: viewModel,
+                    isPrivateMode: isPrivateMode,
+                    isPerformanceMode: metricMode == .performance,
+                    cardBg: cardBg,
+                    textSecondary: textSecondary
+                )
                 
                 GoalCard(
                     goalsViewModel: goalsViewModel,
@@ -100,6 +98,161 @@ struct DashboardView: View {
 
 // MARK: - Subviews
 
+private struct DashboardPeriodSummaryCard: View {
+    @Binding var metricMode: DashboardMetricMode
+    let summary: DashboardSummary
+    let cardBg: Color
+    let positiveGreen: Color
+    let negativeRed: Color
+    let textSecondary: Color
+
+    private var isPerformanceAvailable: Bool {
+        summary.portfolioPerformance != nil
+    }
+
+    private var monthValue: Double {
+        metricMode == .performance
+            ? summary.portfolioPerformance?.month.amount ?? summary.monthChange
+            : summary.monthChange
+    }
+
+    private var monthPercent: Double {
+        metricMode == .performance
+            ? summary.portfolioPerformance?.month.percent ?? summary.monthChangePercent
+            : summary.monthChangePercent
+    }
+
+    private var yearValue: Double {
+        metricMode == .performance
+            ? summary.portfolioPerformance?.year.amount ?? summary.yearChange
+            : summary.yearChange
+    }
+
+    private var yearPercent: Double {
+        metricMode == .performance
+            ? summary.portfolioPerformance?.year.percent ?? summary.yearChangePercent
+            : summary.yearChangePercent
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 12) {
+                Text("Monthly & yearly")
+                    .font(Font.system(.subheadline, design: .rounded).weight(.semibold))
+                    .foregroundColor(.white)
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: 2) {
+                    metricButton(title: "Change", mode: .netWorth, isEnabled: true)
+                    metricButton(title: "Return", mode: .performance, isEnabled: isPerformanceAvailable)
+                }
+                .padding(3)
+                .background(Color.black.opacity(0.22))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+            }
+
+            HStack(alignment: .top, spacing: 0) {
+                SummaryMetricColumn(
+                    title: metricMode == .performance ? "MONTH RETURN" : "THIS MONTH",
+                    value: monthValue,
+                    percent: monthPercent,
+                    positiveGreen: positiveGreen,
+                    negativeRed: negativeRed,
+                    textSecondary: textSecondary
+                )
+
+                Rectangle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 1, height: 54)
+                    .padding(.horizontal, 14)
+
+                SummaryMetricColumn(
+                    title: metricMode == .performance ? "YEAR RETURN" : "THIS YEAR",
+                    value: yearValue,
+                    percent: yearPercent,
+                    positiveGreen: positiveGreen,
+                    negativeRed: negativeRed,
+                    textSecondary: textSecondary
+                )
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
+        .animation(.easeInOut(duration: 0.2), value: metricMode)
+    }
+
+    private func metricButton(
+        title: String,
+        mode: DashboardMetricMode,
+        isEnabled: Bool
+    ) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                metricMode = mode
+            }
+        } label: {
+            Text(title)
+                .font(Font.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundColor(metricMode == mode ? .white : textSecondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(metricMode == mode ? Color.blue : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.45)
+        .accessibilityLabel(mode == .performance ? "Portfolio return" : "Net worth change")
+        .accessibilityValue(metricMode == mode ? "Selected" : "Not selected")
+    }
+}
+
+private struct SummaryMetricColumn: View {
+    let title: String
+    let value: Double
+    let percent: Double
+    let positiveGreen: Color
+    let negativeRed: Color
+    let textSecondary: Color
+
+    private var valueColor: Color {
+        value >= 0 ? positiveGreen : negativeRed
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(Font.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundColor(textSecondary)
+                .tracking(0.8)
+
+            Text(value, format: .currency(code: "GBP").precision(.fractionLength(0)).sign(strategy: .always()))
+                .font(Font.system(.title3, design: .rounded).weight(.bold))
+                .foregroundColor(valueColor)
+                .contentTransition(.numericText(value: value))
+
+            Text("(\(percent > 0 ? "+" : "")\(percent.formatted(.number.precision(.fractionLength(1))))%)")
+                .font(Font.system(.caption2, design: .rounded))
+                .foregroundColor(valueColor)
+                .contentTransition(.numericText(value: percent))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct NetWorthHeader: View {
     @ObservedObject var viewModel: DashboardViewModel
     @Binding var isPrivateMode: Bool
@@ -111,7 +264,7 @@ struct NetWorthHeader: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Group {
-                        Text("Portfolio")
+                        Text("Net Worth")
                     }
                     .font(Font.system(.subheadline, design: .rounded))
                     .foregroundColor(textSecondary)
@@ -161,52 +314,10 @@ struct NetWorthHeader: View {
     }
 }
 
-struct StatBox: View {
-    let title: String
-    let value: Double
-    let percent: Double
-    let cardBg: Color
-    let positiveGreen: Color
-    let negativeRed: Color
-    let isPrivate: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Group {
-                Text(title)
-            }
-            .font(Font.system(size: 10, weight: .bold, design: .rounded))
-            .foregroundColor(.gray)
-            .tracking(1)
-            
-            Group {
-                Text(value, format: .currency(code: "GBP").precision(.fractionLength(0)).sign(strategy: .always()))
-            }
-            .font(Font.system(.callout, design: .rounded))
-            .fontWeight(.semibold)
-            .foregroundColor(value >= 0 ? positiveGreen : negativeRed)
-            .applyPrivacyBlur(isPrivate)
-            
-            Group {
-                Text("(\(percent > 0 ? "+" : "")\(percent.formatted(.number.precision(.fractionLength(1))))%)")
-            }
-            .font(Font.system(.caption2, design: .rounded))
-            .foregroundColor(value >= 0 ? positiveGreen : negativeRed)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(cardBg)
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.05), lineWidth: 1)
-        )
-    }
-}
-
 struct PerformanceChartCard: View {
     @ObservedObject var viewModel: DashboardViewModel
     var isPrivateMode: Bool
+    var isPerformanceMode: Bool
     let cardBg: Color
     let textSecondary: Color
     
@@ -233,11 +344,17 @@ struct PerformanceChartCard: View {
     
     private var chartHeaderView: some View {
         HStack {
-            Group {
-                Text("Portfolio")
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Net Worth Growth")
+                    .font(Font.system(.headline, design: .rounded))
+                    .foregroundColor(.white)
+                if isPerformanceMode {
+                    Text("Month/year figures exclude recorded cash flows · chart remains net worth")
+                        .font(Font.system(size: 9, design: .rounded))
+                        .foregroundColor(textSecondary.opacity(0.75))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .font(Font.system(.headline, design: .rounded))
-            .foregroundColor(.white)
             Spacer()
             if let selected = selectedPoint {
                 VStack(alignment: .trailing) {

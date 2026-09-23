@@ -9,9 +9,23 @@ struct DashboardSummary {
     let monthChangePercent: Double
     let yearChange: Double
     let yearChangePercent: Double
+    let portfolioPerformance: DashboardPerformanceSummary?
     let platformPerformance: [APIDashboardPlatformItem]?
 }
 
+struct DashboardPerformanceSummary {
+    let month: DashboardPerformancePeriod
+    let year: DashboardPerformancePeriod
+}
+
+struct DashboardPerformancePeriod {
+    let amount: Double
+    let percent: Double
+    let contributions: Double
+    let withdrawals: Double
+    let startValue: Double
+    let currentValue: Double
+}
 
 
 struct DashboardPlatformItem: Identifiable {
@@ -41,6 +55,7 @@ class DashboardViewModel: ObservableObject {
             monthChangePercent: 0,
             yearChange: 0,
             yearChangePercent: 0,
+            portfolioPerformance: nil,
             platformPerformance: nil
         )
         self.platforms = []

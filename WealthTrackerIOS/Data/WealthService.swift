@@ -14,6 +14,15 @@ class WealthService {
         // or checks /net-worth/summary
         
         let apiSummary: APIDashboardSummary = try await api.fetch("/net-worth/dashboard-summary")
+        let portfolioPerformance: DashboardPerformanceSummary?
+
+        if let apiPerformance = apiSummary.portfolio_performance {
+            portfolioPerformance = mapPerformance(apiPerformance)
+        } else {
+            // Production may not have the new response field yet. Build the same
+            // simple cash-flow-adjusted estimate from existing read endpoints.
+            portfolioPerformance = try? await calculateFallbackPerformance(summary: apiSummary)
+        }
         
         return DashboardSummary(
             currentNetWorth: apiSummary.total_networth, 
@@ -22,8 +31,98 @@ class WealthService {
             monthChangePercent: apiSummary.mom_change_percent ?? 0,
             yearChange: apiSummary.ytd_change ?? 0,
             yearChangePercent: apiSummary.ytd_change_percent ?? 0,
+            portfolioPerformance: portfolioPerformance,
             platformPerformance: apiSummary.platforms // Map the breakdown performance list
         )
+    }
+
+    private func mapPerformance(_ performance: APIPortfolioPerformanceSummary) -> DashboardPerformanceSummary {
+        DashboardPerformanceSummary(
+            month: mapPerformancePeriod(performance.month),
+            year: mapPerformancePeriod(performance.year)
+        )
+    }
+
+    private func mapPerformancePeriod(_ period: APIPortfolioPerformancePeriod) -> DashboardPerformancePeriod {
+        DashboardPerformancePeriod(
+            amount: period.amount,
+            percent: period.percent,
+            contributions: period.contributions,
+            withdrawals: period.withdrawals,
+            startValue: period.start_value,
+            currentValue: period.current_value
+        )
+    }
+
+    private func calculateFallbackPerformance(summary: APIDashboardSummary) async throws -> DashboardPerformanceSummary {
+        async let historyRequest: [APIHistoricalDataPoint] = api.fetch("/net-worth/history/all")
+        async let incomeRequest: [APIIncomeData] = api.fetch("/cashflow/income")
+        let (history, incomeRows) = try await (historyRequest, incomeRequest)
+
+        let now = Date()
+        let components = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: now)
+        guard let year = components.year, let month = components.month else {
+            throw PerformanceCalculationError.missingCalendarDate
+        }
+
+        let yearStartKey = String(format: "%04d-01-01", year)
+        let monthStartKey = String(format: "%04d-%02d-01", year, month)
+        guard let yearStart = history.first(where: { $0.date.hasPrefix(yearStartKey) }),
+              let monthStart = history.first(where: { $0.date.hasPrefix(monthStartKey) }) else {
+            throw PerformanceCalculationError.missingBaseline
+        }
+
+        let currentPortfolioValue = summary.total_networth - standaloneCash(in: summary.platform_breakdown)
+        let monthStartValue = portfolioValue(for: monthStart)
+        let yearStartValue = portfolioValue(for: yearStart)
+        let yearContributions = incomeRows.first(where: { $0.year == String(year) })?.investment ?? 0
+
+        let monthPerformance = makePerformancePeriod(
+            currentValue: currentPortfolioValue,
+            startValue: monthStartValue,
+            contributions: 0,
+            withdrawals: 0
+        )
+        let yearPerformance = makePerformancePeriod(
+            currentValue: currentPortfolioValue,
+            startValue: yearStartValue,
+            contributions: yearContributions,
+            withdrawals: 0
+        )
+
+        return DashboardPerformanceSummary(month: monthPerformance, year: yearPerformance)
+    }
+
+    private func portfolioValue(for point: APIHistoricalDataPoint) -> Double {
+        point.value - standaloneCash(in: point.platform_breakdown ?? [:])
+    }
+
+    private func standaloneCash(in breakdown: [String: Double]) -> Double {
+        breakdown.first(where: { $0.key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cash" })?.value ?? 0
+    }
+
+    private func makePerformancePeriod(
+        currentValue: Double,
+        startValue: Double,
+        contributions: Double,
+        withdrawals: Double
+    ) -> DashboardPerformancePeriod {
+        let amount = currentValue - startValue - contributions + withdrawals
+        let denominator = startValue + contributions - withdrawals
+        let percent = denominator > 0 ? (amount / denominator) * 100 : 0
+        return DashboardPerformancePeriod(
+            amount: amount,
+            percent: percent,
+            contributions: contributions,
+            withdrawals: withdrawals,
+            startValue: startValue,
+            currentValue: currentValue
+        )
+    }
+
+    private enum PerformanceCalculationError: Error {
+        case missingCalendarDate
+        case missingBaseline
     }
     
     func fetchDashboardHistory(period: String = "1y") async throws -> [NetWorthPoint] {

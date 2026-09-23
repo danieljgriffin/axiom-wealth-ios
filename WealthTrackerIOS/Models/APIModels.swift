@@ -34,6 +34,21 @@ struct APIDashboardSummary: Codable {
     let ytd_change: Double?
     let ytd_change_percent: Double?
     let platforms: [APIDashboardPlatformItem]?
+    let portfolio_performance: APIPortfolioPerformanceSummary?
+}
+
+struct APIPortfolioPerformanceSummary: Codable {
+    let month: APIPortfolioPerformancePeriod
+    let year: APIPortfolioPerformancePeriod
+}
+
+struct APIPortfolioPerformancePeriod: Codable {
+    let amount: Double
+    let percent: Double
+    let contributions: Double
+    let withdrawals: Double
+    let start_value: Double
+    let current_value: Double
 }
 
 struct APIDashboardPlatformItem: Codable {
@@ -47,6 +62,12 @@ struct APIHistoricalDataPoint: Codable {
     let date: String
     let value: Double
     let platform_breakdown: [String: Double]?
+}
+
+struct APIIncomeData: Codable {
+    let year: String
+    let income: Double
+    let investment: Double
 }
 
 struct APIGoal: Codable {
