@@ -109,7 +109,13 @@ class DashboardViewModel: ObservableObject {
                 monthChange: monthChange,
                 monthChangePercent: monthChangePercent
             )
-        }.sorted(by: { $0.value > $1.value })
+        }.sorted { lhs, rhs in
+            let lhsIsCash = lhs.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cash"
+            let rhsIsCash = rhs.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cash"
+            if lhsIsCash != rhsIsCash { return !lhsIsCash }
+            if lhs.value != rhs.value { return lhs.value > rhs.value }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
         
         // Trigger fetch for Summary and History
         Task {

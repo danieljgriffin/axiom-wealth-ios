@@ -45,7 +45,13 @@ class InvestmentsViewModel: ObservableObject {
         
         do {
             let fetchedPlatforms = try await WealthService.shared.fetchHoldings()
-            self.platforms = fetchedPlatforms
+            self.platforms = fetchedPlatforms.sorted { lhs, rhs in
+                let lhsIsCash = lhs.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cash"
+                let rhsIsCash = rhs.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cash"
+                if lhsIsCash != rhsIsCash { return !lhsIsCash }
+                if lhs.totalValue != rhs.totalValue { return lhs.totalValue > rhs.totalValue }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
         } catch {
             print("Error loading holdings: \(error)")
             // Fallback to empty or keep existing?
