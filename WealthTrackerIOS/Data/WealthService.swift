@@ -340,6 +340,24 @@ class WealthService {
         let _: ConnectCryptoResponse = try await api.send("/crypto/connect-investment", method: "POST", body: request)
     }
 
+    func connectTrading212(
+        apiKey: String,
+        apiSecret: String,
+        accountType: String
+    ) async throws {
+        let request = Trading212ConnectRequest(
+            api_key_id: apiKey,
+            api_secret_key: apiSecret,
+            account_type: accountType
+        )
+
+        let _: Trading212ConnectResponse = try await api.send(
+            "/holdings/import/trading212",
+            method: "POST",
+            body: request
+        )
+    }
+
     func deletePlatform(name: String) async throws {
         guard let encodedName = name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
             throw URLError(.badURL)
@@ -392,6 +410,25 @@ private struct ConnectCryptoResponse: Codable {
     let investment_id: Int
     let wallet_id: Int
     let message: String
+}
+
+private struct Trading212ConnectRequest: Encodable {
+    let api_key_id: String
+    let api_secret_key: String
+    let account_type: String
+}
+
+private struct Trading212ConnectResponse: Codable {
+    let status: String
+    let message: String
+    let platform: String
+    let account_type: String
+    let account_id: String?
+    let cash_balance: Double?
+    let added: Int
+    let updated: Int
+    let unchanged: Int
+    let deleted: Int
 }
 
 private struct CreateGoalRequest: Encodable {

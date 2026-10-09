@@ -71,8 +71,8 @@ class DashboardViewModel: ObservableObject {
     private var timer: Timer?
     
     private func startAutoRefresh() {
-        // Trigger refresh every 15 minutes (900 seconds)
-        timer = Timer.scheduledTimer(withTimeInterval: 900, repeats: true) { [weak self] _ in
+        // Match the backend's five-minute Trading 212 sync cadence.
+        timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
             print("Auto-refreshing dashboard data...")
             Task { @MainActor [weak self] in
                 await self?.fetchApiData()

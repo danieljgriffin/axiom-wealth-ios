@@ -1,5 +1,14 @@
 import SwiftUI
 
+private enum Trading212AccountType: String, CaseIterable, Identifiable {
+    case gia
+    case isa
+
+    var id: String { rawValue }
+    var title: String { self == .gia ? "General Invest" : "Stocks ISA" }
+    var shortName: String { self == .gia ? "GIA" : "ISA" }
+}
+
 struct Trading212ConnectView: View {
     @Environment(\.dismiss) var dismiss
     @Binding var shouldDismissParent: Bool
@@ -7,6 +16,7 @@ struct Trading212ConnectView: View {
     
     @State private var apiKey = ""
     @State private var apiSecret = ""
+    @State private var accountType: Trading212AccountType = .gia
     @State private var showingError = false
     @State private var errorMessage = ""
     
@@ -55,11 +65,18 @@ struct Trading212ConnectView: View {
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                         
-                        Text("Import your portfolio automatically")
+                        Text("Connect an ISA or GIA as a separate account")
                             .font(.system(.body, design: .rounded))
                             .foregroundColor(textSecondary)
                     }
                     .padding(.top, 20)
+
+                    Picker("Trading 212 account", selection: $accountType) {
+                        ForEach(Trading212AccountType.allCases) { type in
+                            Text(type.title).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                     
                     // Instructions Card
                     VStack(alignment: .leading, spacing: 16) {
@@ -68,13 +85,12 @@ struct Trading212ConnectView: View {
                             .foregroundColor(.white)
                         
                         VStack(alignment: .leading, spacing: 12) {
-                            InstructionRow(number: "1", text: "Open the Trading 212 app")
-                            InstructionRow(number: "2", text: "Go to Menu > Settings > API")
+                            InstructionRow(number: "1", text: "Open Trading 212 and switch to your \(accountType.title) account")
+                            InstructionRow(number: "2", text: "Go to Menu > Settings > API (Beta)")
                             InstructionRow(number: "3", text: "Tap 'Generate API Key'")
-                            InstructionRow(number: "4", text: "Name your key (e.g. WealthTracker)")
-                            InstructionRow(number: "5", text: "Select: Account Data, History, Orders, Portfolio")
-                            InstructionRow(number: "6", text: "Uncheck all other permissions")
-                            InstructionRow(number: "7", text: "Copy the API Key ID and Secret Key")
+                            InstructionRow(number: "4", text: "Name it WealthTracker \(accountType.shortName)")
+                            InstructionRow(number: "5", text: "Enable read-only Account Data and Portfolio permissions")
+                            InstructionRow(number: "6", text: "Copy the API Key ID and Secret Key")
                         }
                     }
                     .padding(20)
@@ -136,7 +152,7 @@ struct Trading212ConnectView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Connect") {
+                Button("Connect \(accountType.shortName)") {
                     connect()
                 }
                 .fontWeight(.bold)
@@ -154,7 +170,11 @@ struct Trading212ConnectView: View {
     private func connect() {
         Task {
             do {
-                try await viewModel.addTrading212Platform(apiKey: apiKey, apiSecret: apiSecret)
+                try await viewModel.addTrading212Platform(
+                    apiKey: apiKey,
+                    apiSecret: apiSecret,
+                    accountType: accountType.rawValue
+                )
                 shouldDismissParent = true // Signal parent to dismiss
                 dismiss()
             } catch {
