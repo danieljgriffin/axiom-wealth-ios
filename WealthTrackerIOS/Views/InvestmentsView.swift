@@ -215,7 +215,7 @@ struct InvestmentsHeader: View {
             }
         }
         .padding(.horizontal)
-        .padding(.top, 20)
+        .padding(.top, 8)
     }
 }
 

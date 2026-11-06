@@ -7,6 +7,7 @@ private enum DashboardMetricMode: String, CaseIterable {
 }
 
 struct DashboardView: View {
+    var trackerRevision = 0
     @StateObject private var viewModel = DashboardViewModel()
     @StateObject private var goalsViewModel = GoalsViewModel()
     @EnvironmentObject var investmentsViewModel: InvestmentsViewModel
@@ -86,6 +87,9 @@ struct DashboardView: View {
         }
         .onChange(of: investmentsViewModel.platforms) { _, newPlatforms in
             viewModel.update(with: newPlatforms)
+        }
+        .onChange(of: trackerRevision) {
+            viewModel.update(with: investmentsViewModel.platforms)
         }
         .sheet(isPresented: $showingGoals) {
             GoalsView(viewModel: goalsViewModel, currentNetWorth: viewModel.summary.currentNetWorth)
