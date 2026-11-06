@@ -3,11 +3,15 @@ import Foundation
 enum AppConfig {
     #if !DEBUG || !targetEnvironment(simulator)
     static let apiBaseURL = "https://finance-api-snqw.onrender.com"
-    // In a real app, this should come from Keychain or at least not be committed.
-    // For this implementation, we read from an environment variable or fallback for ease of testing.
-    // Ideally, we'd use a Build Configuration + Info.plist.
-    static var apiToken: String {
-        return "08ca04287b677cad743eebd423a1a385b95493b598cca7ef571adb5ea79377bb"
+    static let apiToken: String = {
+        guard let url = Bundle.main.url(forResource: "LocalAPI", withExtension: "plist"),
+              let data = try? Data(contentsOf: url),
+              let config = try? PropertyListDecoder().decode(LocalAPI.self, from: data) else { return "" }
+        return config.apiToken
+    }()
+
+    private struct LocalAPI: Decodable {
+        let apiToken: String
     }
     #else
     static let apiBaseURL = "http://localhost:8017"

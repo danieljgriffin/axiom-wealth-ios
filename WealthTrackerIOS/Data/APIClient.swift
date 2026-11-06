@@ -39,7 +39,7 @@ class APIClient {
         return AppConfig.apiToken
     }
     
-    func fetch<T: Codable>(_ endpoint: String) async throws -> T {
+    func fetch<T: Decodable>(_ endpoint: String) async throws -> T {
         let urlString = "\(baseURL)\(endpoint)"
         guard let url = URL(string: urlString) else {
             throw APIError.invalidURL(urlString)

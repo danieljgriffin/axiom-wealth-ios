@@ -11,7 +11,15 @@ import SwiftUI
 struct WealthTrackerIOSApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if AppConfig.apiToken.isEmpty {
+                ContentUnavailableView(
+                    "API key required",
+                    systemImage: "lock",
+                    description: Text("Set the private API key in the Xcode project, then build the app again.")
+                )
+            } else {
+                ContentView()
+            }
         }
     }
 }

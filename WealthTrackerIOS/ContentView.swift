@@ -23,6 +23,11 @@ struct ContentView: View {
                 .tabItem {
                     Label("Tracker", systemImage: "calendar")
                 }
+
+            FinancePlanView()
+                .tabItem {
+                    Label("Finance plan", systemImage: "list.bullet.rectangle")
+                }
         }
         .task {
             await investmentsViewModel.loadData()

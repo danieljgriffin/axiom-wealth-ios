@@ -44,6 +44,30 @@ struct AddInvestmentView: View {
                 
                 ScrollView {
                     VStack(spacing: 24) {
+                        if investmentToEdit == nil {
+                            NavigationLink {
+                                PlannedPurchasePicker {
+                                    dismiss()
+                                    Task { await viewModel.loadData() }
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "list.bullet.rectangle").foregroundStyle(.blue)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("From your plan").font(.headline)
+                                        Text("Record a purchase from your Finance plan")
+                                            .font(.subheadline).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding()
+                                .background(Color.cardBg, in: RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
                         // 1. Platform Selection
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Platform")
